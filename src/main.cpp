@@ -2,94 +2,91 @@
 #include <PubSubClient.h>
 #include <ESP32Servo.h>
 
-// 1. Configuración de Red WiFi (En Wokwi usa "Wokwi-GUEST")
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
+const char* mqtt_server = "broker.hivemq.com";
 
-// 2. Configuración del Broker MQTT (Ejemplo usando HiveMQ público o tu IP local)
-const char* mqtt_server = "mqtt.eclipseprojects.io";
-const int mqtt_port = 1883;
-const char* mqtt_topic = "upark/acceso/puerta";
+const int NUM_PUERTAS = 9;
 
-// 3. Definición de Pines
-const int pinServo = 18;
-const int pinLedVerde = 2;
-const int pinLedRojo = 4;
+// Tópicos de MQTT
+const char* topicos_puertas[NUM_PUERTAS] = {
+  "upark/acceso/puerta/1", "upark/acceso/puerta/2", "upark/acceso/puerta/3",
+  "upark/acceso/puerta/4", "upark/acceso/puerta/5", "upark/acceso/puerta/6",
+  "upark/acceso/puerta/7", "upark/acceso/puerta/8", "upark/acceso/puerta/9"
+};
 
+// Pines
+const int PIN_LED_VERDE = 2;
+const int PIN_LED_ROJO = 4;
+const int pinesServo[NUM_PUERTAS] = {12, 13, 14, 15, 16, 17, 18, 19, 21}; 
+
+Servo barreras[NUM_PUERTAS];
 WiFiClient espClient;
 PubSubClient client(espClient);
-Servo barreraServo;
 
 void setup_wifi() {
   delay(10);
-  Serial.println();
-  Serial.print("Conectando a WiFi: ");
-  Serial.println(ssid);
-
+  Serial.print("Conectando a WiFi...");
   WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("¡WiFi conectado exitosamente!");
-  Serial.print("IP asignada: ");
-  Serial.println(WiFi.localIP());
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  Serial.println(" ¡Conectado!");
 }
 
-// 4. Función que se ejecuta cuando llega el mensaje del Backend FastAPI
 void callback(char* topic, byte* payload, unsigned int length) {
   String mensaje = "";
   for (int i = 0; i < length; i++) {
     mensaje += (char)payload[i];
   }
   
-  Serial.print("Mensaje MQTT recibido en [" + String(topic) + "]: ");
-  Serial.println(mensaje);
-
-  // Lógica de control de la barrera (UPark)
-  if (mensaje == "abrir") {
-    Serial.println(">>> ACCESO PERMITIDO: Abriendo barrera...");
-    digitalWrite(pinLedRojo, LOW);
-    digitalWrite(pinLedVerde, HIGH);
-    
-    barreraServo.write(90); // Levanta el brazo (90 grados)
-    delay(5000);            // Espera 5 segundos a que pase el auto
-    
-    barreraServo.write(0);  // Baja el brazo (0 grados)
-    digitalWrite(pinLedVerde, LOW);
-    digitalWrite(pinLedRojo, HIGH);
-    Serial.println(">>> Barrera cerrada.");
-  } 
-  else if (mensaje == "denegado") {
-    Serial.println(">>> ACCESO DENEGADO");
-    // Parpadeo de alerta en el LED rojo
-    for(int i = 0; i < 3; i++) {
-      digitalWrite(pinLedRojo, LOW);
-      delay(200);
-      digitalWrite(pinLedRojo, HIGH);
-      delay(200);
+  // Identificar qué puerta recibió el comando
+  int puertaIndex = -1;
+  for(int i = 0; i < NUM_PUERTAS; i++){
+    if(String(topic) == String(topicos_puertas[i])){
+      puertaIndex = i;
+      break;
     }
   }
+
+  if(puertaIndex == -1) return;
+
+  Serial.print(">>> Acción en PUERTA ");
+  Serial.print(puertaIndex + 1);
+  Serial.print(": ");
+  Serial.println(mensaje);
+
+  if (mensaje == "abrir") {
+    // ESTADO GENERAL: Abriendo (Verde ON, Rojo OFF)
+    digitalWrite(PIN_LED_ROJO, LOW);
+    digitalWrite(PIN_LED_VERDE, HIGH);
+    
+    // Abrir barrera específica
+    barreras[puertaIndex].write(90); 
+    
+    delay(5000); // Espera 5 segundos
+    
+    // Cerrar barrera específica
+    barreras[puertaIndex].write(0);  
+    
+    // ESTADO GENERAL: Cerrado (Verde OFF, Rojo ON)
+    digitalWrite(PIN_LED_VERDE, LOW);
+    digitalWrite(PIN_LED_ROJO, HIGH);
+    
+    Serial.println("Barrera cerrada.");
+  } 
 }
 
 void reconnect() {
   while (!client.connected()) {
-    Serial.print("Intentando conexión MQTT...");
-    // ID único de cliente
-    String clientId = "ESP32_UPark_Client_";
+    String clientId = "ESP32_UPark_Central_";
     clientId += String(random(0xffff), HEX);
 
     if (client.connect(clientId.c_str())) {
-      Serial.println("¡Conectado al Broker MQTT!");
-      // Suscribirse al tópico de UPark
-      client.subscribe(mqtt_topic);
+      Serial.println("¡Conectado a HiveMQ!");
+      // Suscribirse a las 9 puertas
+      for(int i = 0; i < NUM_PUERTAS; i++){
+         client.subscribe(topicos_puertas[i]);
+      }
     } else {
-      Serial.print("Fallo, rc=");
-      Serial.print(client.state());
-      Serial.println(" -> Reintentando en 5 segundos...");
       delay(5000);
     }
   }
@@ -98,20 +95,22 @@ void reconnect() {
 void setup() {
   Serial.begin(115200);
   
-  // Configuración de pines
-  pinMode(pinLedVerde, OUTPUT);
-  pinMode(pinLedRojo, OUTPUT);
+  // Configurar LEDs Globales
+  pinMode(PIN_LED_VERDE, OUTPUT);
+  pinMode(PIN_LED_ROJO, OUTPUT);
   
-  // Estado inicial: Puerta cerrada, LED rojo encendido
-  digitalWrite(pinLedVerde, LOW);
-  digitalWrite(pinLedRojo, HIGH);
-  
-  barreraServo.attach(pinServo);
-  barreraServo.write(0); // Barrera en posición horizontal (0 grados)
+  // Estado inicial: Todo cerrado
+  digitalWrite(PIN_LED_VERDE, LOW);
+  digitalWrite(PIN_LED_ROJO, HIGH);
+
+  // Inicializar Servos
+  for(int i = 0; i < NUM_PUERTAS; i++){
+    barreras[i].attach(pinesServo[i]);
+    barreras[i].write(0);
+  }
 
   setup_wifi();
-  client.setServer(mqtt_server, mqtt_port);
-  client.setKeepAlive(90);
+  client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 }
 
