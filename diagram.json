@@ -368,7 +368,7 @@
     [ "esp:5", "P2_IN:PWM", "green", [] ],
     [ "esp:21", "P2_OUT:PWM", "green", [] ],
     [ "esp:12", "P3_IN:PWM", "green", [] ],
-    [ "esp:22", "P3_OUT:PWM", "green", [] ],
+
     [ "esp:13", "P4_IN:PWM", "green", [] ],
     [ "esp:23", "P4_OUT:PWM", "green", [] ],
     [ "esp:14", "P5_IN:PWM", "green", [] ],
@@ -380,7 +380,7 @@
     [ "esp:17", "P8_IN:PWM", "green", [] ],
     [ "esp:32", "P8_OUT:PWM", "green", [] ],
     [ "esp:18", "P9_IN:PWM", "green", [] ],
-    [ "esp:33", "P9_OUT:PWM", "green", [] ],
+    
     [ "esp:GND.1", "P1_IN:GND", "black", [] ],
     [ "esp:GND.1", "P1_OUT:GND", "black", [] ],
     [ "esp:GND.1", "P2_IN:GND", "black", [] ],

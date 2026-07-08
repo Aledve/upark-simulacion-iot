@@ -15,7 +15,7 @@ const char* topicos_barreras[NUM_BARRERAS] = {
   "upark/acceso/puerta/7763aec5-3fe8-484a-ac57-993d89d51ce7",  // Puerta 2 - IN
   "upark/acceso/puerta/e2d0bdfb-9ce9-4574-9918-b950c5c23d43",  // Puerta 2 - OUT
   "upark/acceso/puerta/ea0fcf4c-710f-4a5a-bcef-c37a3838ac55",  // Puerta 3 - IN
-  "upark/acceso/puerta/c2e34a47-22fc-4570-a6c4-1347316ca31e",  // Puerta 3 - OUT
+  "upark/acceso/puerta/c2e34a47-22fc-4570-a6c4-1347316ca31e",  // Puerta 3 - OUT D
   "upark/acceso/puerta/3717f1c2-6283-4361-a9f4-84d3ab70437b",  // Puerta 4 - IN
   "upark/acceso/puerta/8f824a1f-3a41-4952-a4de-56d4de441f2c",  // Puerta 4 - OUT
   "upark/acceso/puerta/9d71ebf1-d7bf-4ba2-8417-593e90afcf3a",  // Puerta 5 - IN
@@ -27,22 +27,22 @@ const char* topicos_barreras[NUM_BARRERAS] = {
   "upark/acceso/puerta/18b5f8c6-2337-4ba5-800a-25a8777b31be",  // Puerta 8 - IN
   "upark/acceso/puerta/f2c61ae5-35c1-4c53-ac73-f843d5dd6306",  // Puerta 8 - OUT
   "upark/acceso/puerta/f7eff2fd-b383-4adf-81fe-18f42ba4e10e",  // Puerta 9 - IN
-  "upark/acceso/puerta/73a44545-37fe-4579-bf02-f2804de4a097"   // Puerta 9 - OUT
+  "upark/acceso/puerta/73a44545-37fe-4579-bf02-f2804de4a097"   // Puerta 9 - OUT D
 };
 
 const int PIN_LED_VERDE = 2;
 const int PIN_LED_ROJO = 0; 
 
 const int pinesServo[NUM_BARRERAS] = {
-  4, 19,   // Puerta 1
-  5, 21,   // Puerta 2
-  12, 22,  // Puerta 3
-  13, 23,  // Puerta 4
-  14, 25,  // Puerta 5
-  15, 26,  // Puerta 6
-  16, 27,  // Puerta 7
-  17, 32,  // Puerta 8
-  18, 33   // Puerta 9
+  4, 19,   // Puerta 1 (IN, OUT)
+  5, 21,   // Puerta 2 (IN, OUT)
+  12, -1,  // Puerta 3 (IN, OUT)
+  13, 23,  // Puerta 4 (IN, OUT)
+  14, 25,  // Puerta 5 (IN, OUT)
+  15, 26,  // Puerta 6 (IN, OUT)
+  16, 27,  // Puerta 7 (IN, OUT)
+  17, 32,  // Puerta 8 (IN, OUT)
+  18, -1   // Puerta 9 (IN, OUT)
 }; 
 
 Servo barreras[NUM_BARRERAS];
@@ -64,7 +64,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     mensaje += (char)payload[i];
   }
   
-  // Identificar qué barrera específica (índice 0-17) recibió el comando
   int barreraIndex = -1;
   for(int i = 0; i < NUM_BARRERAS; i++){
     if(String(topic) == String(topicos_barreras[i])){
@@ -73,7 +72,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
   }
 
-  // Si el UUID no coincide con ninguna barrera registrada, se ignora
   if(barreraIndex == -1) return;
 
   Serial.print(">>> Acción en BARRERA índice ");
@@ -81,33 +79,32 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print(": ");
   Serial.println(mensaje);
 
-  // Lógica de control de la barrera
   if (mensaje == "abrir") {
-    Serial.println(">>> ACCESO PERMITIDO: Abriendo barrera...");
+    Serial.println(">>> ACCESO PERMITIDO");
     
-    // ESTADO GENERAL: Abriendo (Verde ON, Rojo OFF)
     digitalWrite(PIN_LED_ROJO, LOW);
     digitalWrite(PIN_LED_VERDE, HIGH);
     
-    // Abrir SOLAMENTE la barrera que fue autorizada
-    barreras[barreraIndex].write(90); 
+    // Solo intentamos mover el motor si NO tiene el pin -1
+    if (pinesServo[barreraIndex] != -1) {
+      barreras[barreraIndex].write(90); 
+    } else {
+      Serial.println("    (Nota: Barrera visual, no hay motor conectado)");
+    }
     
-    // Espera 5 segundos a que pase el auto
     delay(5000); 
     
-    // Cerrar la barrera
-    barreras[barreraIndex].write(0);  
+    if (pinesServo[barreraIndex] != -1) {
+      barreras[barreraIndex].write(0);  
+    }
     
-    // ESTADO GENERAL: Cerrado (Verde OFF, Rojo ON)
     digitalWrite(PIN_LED_VERDE, LOW);
     digitalWrite(PIN_LED_ROJO, HIGH);
     
-    Serial.println(">>> Barrera cerrada.");
+    Serial.println(">>> Ciclo completado.");
   } 
   else if (mensaje == "denegado") {
     Serial.println(">>> ACCESO DENEGADO");
-    
-    // Parpadeo de alerta en el LED rojo
     for(int i = 0; i < 3; i++) {
       digitalWrite(PIN_LED_ROJO, LOW);
       delay(200);
@@ -124,7 +121,6 @@ void reconnect() {
 
     if (client.connect(clientId.c_str())) {
       Serial.println("¡Conectado a HiveMQ!");
-      // Suscribirse a los 18 tópicos (IN y OUT) a la vez
       for(int i = 0; i < NUM_BARRERAS; i++){
          client.subscribe(topicos_barreras[i]);
       }
@@ -137,18 +133,17 @@ void reconnect() {
 void setup() {
   Serial.begin(115200);
   
-  // Configurar LEDs Globales
   pinMode(PIN_LED_VERDE, OUTPUT);
   pinMode(PIN_LED_ROJO, OUTPUT);
-  
-  // Estado inicial: Todo cerrado
   digitalWrite(PIN_LED_VERDE, LOW);
   digitalWrite(PIN_LED_ROJO, HIGH);
 
-  // Inicializar y asignar pines a los 18 Servomotores
+  // Inicializar los servomotores que tienen un pin asignado
   for(int i = 0; i < NUM_BARRERAS; i++){
-    barreras[i].attach(pinesServo[i]);
-    barreras[i].write(0);
+    if (pinesServo[i] != -1) {
+      barreras[i].attach(pinesServo[i]);
+      barreras[i].write(0);
+    }
   }
 
   setup_wifi();
@@ -162,3 +157,6 @@ void loop() {
   }
   client.loop();
 }
+
+
+
