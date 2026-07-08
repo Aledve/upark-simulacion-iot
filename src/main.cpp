@@ -10,7 +10,7 @@ const int NUM_PUERTAS = 9;
 
 // Tópicos de MQTT
 const char* topicos_puertas[NUM_PUERTAS] = {
-  "upark/acceso/puerta/1", "upark/acceso/puerta/2", "upark/acceso/puerta/3",
+  "upark/acceso/puerta/c50e4adb-e5bf-47e7-b297-7be877789b44", "upark/acceso/puerta/2", "upark/acceso/puerta/3",
   "upark/acceso/puerta/4", "upark/acceso/puerta/5", "upark/acceso/puerta/6",
   "upark/acceso/puerta/7", "upark/acceso/puerta/8", "upark/acceso/puerta/9"
 };
