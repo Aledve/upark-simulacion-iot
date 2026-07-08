@@ -10,9 +10,15 @@ const int NUM_PUERTAS = 9;
 
 // Tópicos de MQTT
 const char* topicos_puertas[NUM_PUERTAS] = {
-  "upark/acceso/puerta/c50e4adb-e5bf-47e7-b297-7be877789b44", "upark/acceso/puerta/2", "upark/acceso/puerta/3",
-  "upark/acceso/puerta/4", "upark/acceso/puerta/5", "upark/acceso/puerta/6",
-  "upark/acceso/puerta/7", "upark/acceso/puerta/8", "upark/acceso/puerta/9"
+  "upark/acceso/puerta/c50e4adb-e5bf-47e7-b297-7be877789b44", 
+  "upark/acceso/puerta/43481483-fc4d-48b0-b7e6-e014330c67b1", 
+  "upark/acceso/puerta/21410856-c0ce-40ec-a4c9-ec173fb9ba0c",
+  "upark/acceso/puerta/1ef56d32-7cc0-4ebd-abd0-1abbe349c1cf", 
+  "upark/acceso/puerta/0e0e124e-78e2-4106-a887-2ff0aa844729", 
+  "upark/acceso/puerta/f7bf1f2e-cba3-4487-82d4-9693eb5e7bf0",
+  "upark/acceso/puerta/5142ed92-9aa3-4c48-b5af-7c02271e8753", 
+  "upark/acceso/puerta/468fb2d0-e369-4b5b-be99-0fb744efdae3", 
+  "upark/acceso/puerta/91564372-412a-4bce-b142-c43cd6e62bcb"
 };
 
 // Pines
